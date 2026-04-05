@@ -19,7 +19,7 @@ const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
 
 // 탭 네비게이션 (가족 / 채팅목록 / 설정)
-function MainTabs({ profile, onLogout }) {
+function MainTabs({ profile, onLogout, chatBg, onChangeBg }) {
   return (
     <Tab.Navigator
       initialRouteName="채팅"
@@ -47,21 +47,21 @@ function MainTabs({ profile, onLogout }) {
         name="설정"
         options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>⚙️</Text> }}
       >
-        {() => <SettingsScreen profile={profile} onLogout={onLogout} />}
+        {() => <SettingsScreen profile={profile} onLogout={onLogout} chatBg={chatBg} onChangeBg={onChangeBg} />}
       </Tab.Screen>
     </Tab.Navigator>
   );
 }
 
 // 루트: 탭(하단바 있음) → 채팅방(하단바 없음, 전체화면)
-function RootNavigator({ profile, onLogout }) {
+function RootNavigator({ profile, onLogout, chatBg, onChangeBg }) {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       <RootStack.Screen name="Main">
-        {() => <MainTabs profile={profile} onLogout={onLogout} />}
+        {() => <MainTabs profile={profile} onLogout={onLogout} chatBg={chatBg} onChangeBg={onChangeBg} />}
       </RootStack.Screen>
       <RootStack.Screen name="Chat">
-        {(props) => <ChatScreen {...props} profile={profile} />}
+        {(props) => <ChatScreen {...props} profile={profile} chatBg={chatBg} />}
       </RootStack.Screen>
     </RootStack.Navigator>
   );
@@ -70,6 +70,7 @@ function RootNavigator({ profile, onLogout }) {
 export default function App() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [chatBg, setChatBg] = useState('#FFF8E1');
 
   useEffect(() => {
     AsyncStorage.getItem('fambee_profile').then(data => {
@@ -80,8 +81,14 @@ export default function App() {
       }
       setLoading(false);
     });
+    AsyncStorage.getItem('fambee_chatBg').then(bg => { if (bg) setChatBg(bg); });
     checkForUpdate();
   }, []);
+
+  const handleChangeBg = async (color) => {
+    setChatBg(color);
+    await AsyncStorage.setItem('fambee_chatBg', color);
+  };
 
   const checkForUpdate = async () => {
     try {
@@ -127,7 +134,7 @@ export default function App() {
           <ProfileScreen onSelect={setProfile} />
         ) : (
           <NavigationContainer>
-            <RootNavigator profile={profile} onLogout={handleLogout} />
+            <RootNavigator profile={profile} onLogout={handleLogout} chatBg={chatBg} onChangeBg={handleChangeBg} />
           </NavigationContainer>
         )}
       </KeyboardProvider>

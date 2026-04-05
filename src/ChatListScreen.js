@@ -24,13 +24,21 @@ export default function ChatListScreen({ navigation, profile }) {
 
         const { doc } = require('firebase/firestore');
 
-        myRooms.forEach(room => {
+        myRooms.forEach(async (room) => {
+          const clearBefore = await AsyncStorage.getItem(`clearBefore_${room.id}`);
+          const clearTime = clearBefore ? new Date(clearBefore) : null;
+
           const colName = room.id === 'family' ? 'messages' : `messages_${room.id}`;
           const q = query(collection(db, colName), orderBy('createdAt', 'desc'), limit(1));
           const unsub = onSnapshot(q, (snapshot) => {
             if (!snapshot.empty) {
               const msg = snapshot.docs[0].data();
-              setLastMessages(prev => ({ ...prev, [room.id]: msg }));
+              const msgTime = msg.createdAt?.toDate ? msg.createdAt.toDate() : new Date(msg.createdAt);
+              if (clearTime && msgTime < clearTime) {
+                setLastMessages(prev => { const next = { ...prev }; delete next[room.id]; return next; });
+              } else {
+                setLastMessages(prev => ({ ...prev, [room.id]: msg }));
+              }
             }
           });
           unsubscribes.push(unsub);

@@ -44,7 +44,7 @@ const isSameMinute = (t1, t2) => {
   return isSameDay(t1, t2) && d1.getHours() === d2.getHours() && d1.getMinutes() === d2.getMinutes();
 };
 
-export default function ChatScreen({ profile, navigation, route }) {
+export default function ChatScreen({ profile, navigation, route, chatBg }) {
   const roomId = route?.params?.roomId || 'family';
   const roomName = route?.params?.roomName || '우리 가족';
   const isGroup = route?.params?.isGroup ?? true;
@@ -612,7 +612,7 @@ export default function ChatScreen({ profile, navigation, route }) {
   const isMyMsg = selectedMsg?.userId === profile.id;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: isLegacy ? insets.bottom : 0 }]}>
+    <View style={[styles.container, { backgroundColor: chatBg || '#FFF8E1', paddingTop: insets.top, paddingBottom: isLegacy ? insets.bottom : 0 }]}>
       {/* 헤더 */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
@@ -797,7 +797,7 @@ export default function ChatScreen({ profile, navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF8E1' },
+  container: { flex: 1 },
 
   // 헤더
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFC107', paddingVertical: 5, paddingHorizontal: 16 },
