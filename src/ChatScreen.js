@@ -5,7 +5,7 @@ import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import * as Clipboard from 'expo-clipboard';
 import Popup from './Popup';
 import { ROOMS } from './constants';
-import { sendPushToUsers } from './notifications';
+import { sendPushToUser } from './notifications';
 import * as ImagePicker from 'expo-image-picker';
 import ImageViewer from './ImageViewer';
 import EmojiPicker from 'rn-emoji-keyboard';
@@ -89,6 +89,20 @@ export default function ChatScreen({ profile, navigation, route, chatBg }) {
   const currentRoom = ROOMS.find(r => r.id === roomId);
   const roomMembers = currentRoom ? currentRoom.members : [];
 
+  // 채팅방 접속 상태 (presence) — 입장/퇴장 시 Firestore에 기록
+  useEffect(() => {
+    let cleanup = false;
+    const setPresence = async (room) => {
+      try {
+        const { db } = require('./firebase');
+        const { doc, setDoc } = require('firebase/firestore');
+        await setDoc(doc(db, 'presence', profile.id), { activeRoom: room, updatedAt: new Date() });
+      } catch (e) {}
+    };
+    setPresence(roomId);
+    return () => { if (!cleanup) { cleanup = true; setPresence(null); } };
+  }, [roomId]);
+
   // 채팅방 열 때 unread 리셋 + readStatus 업데이트
   const resetUnread = async (db) => {
     try {
@@ -98,13 +112,32 @@ export default function ChatScreen({ profile, navigation, route, chatBg }) {
     } catch (e) {}
   };
 
-  // 메시지 전송 시 상대방 unread 증가
+  // 접속 중이 아닌 멤버에게만 푸시 보내기
+  const sendPushToOfflineUsers = async (members, senderId, senderName, msgText) => {
+    for (const memberId of members) {
+      if (memberId === senderId) continue;
+      if (await isUserInRoom(memberId)) continue;
+      await sendPushToUser(memberId, senderName, msgText);
+    }
+  };
+
+  // 상대방이 이 채팅방에 접속 중인지 확인
+  const isUserInRoom = async (userId) => {
+    try {
+      const { doc, getDoc } = require('firebase/firestore');
+      const snap = await getDoc(doc(dbRef.current, 'presence', userId));
+      return snap.exists() && snap.data().activeRoom === roomId;
+    } catch (e) { return false; }
+  };
+
+  // 메시지 전송 시 상대방 unread 증가 (접속 중이면 스킵)
   const incrementUnread = async () => {
     if (!dbRef.current) return;
     try {
       const { doc, setDoc, getDoc } = require('firebase/firestore');
       for (const memberId of roomMembers) {
         if (memberId === profile.id) continue;
+        if (await isUserInRoom(memberId)) continue;
         const ref = doc(dbRef.current, 'unread', `${roomId}_${memberId}`);
         const snap = await getDoc(ref);
         const current = snap.exists() ? snap.data().count || 0 : 0;
@@ -232,7 +265,7 @@ export default function ChatScreen({ profile, navigation, route, chatBg }) {
           createdAt: serverTimestamp(),
         });
         incrementUnread();
-        sendPushToUsers(roomMembers, profile.id, profile.name, trimmed);
+        sendPushToOfflineUsers(roomMembers, profile.id, profile.name, trimmed);
         return;
       } catch (e) {
         console.log('전송 실패:', e.message);
@@ -316,7 +349,7 @@ export default function ChatScreen({ profile, navigation, route, chatBg }) {
         createdAt: serverTimestamp(),
       });
       incrementUnread();
-      sendPushToUsers(roomMembers, profile.id, profile.name, '사진을 보냈습니다');
+      sendPushToOfflineUsers(roomMembers, profile.id, profile.name, '사진을 보냈습니다');
     } catch (e) {
       console.log('이미지 전송 실패:', e.message);
       Alert.alert('전송 실패', '이미지를 전송하지 못했습니다.');
@@ -408,7 +441,7 @@ export default function ChatScreen({ profile, navigation, route, chatBg }) {
         createdAt: serverTimestamp(),
       });
       incrementUnread();
-      sendPushToUsers(roomMembers, profile.id, profile.name, '영상을 보냈습니다');
+      sendPushToOfflineUsers(roomMembers, profile.id, profile.name, '영상을 보냈습니다');
     } catch (e) {
       console.log('영상 전송 실패:', e.message);
       Alert.alert('전송 실패', '영상을 전송하지 못했습니다.');

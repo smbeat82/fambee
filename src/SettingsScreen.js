@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Linking, Platform, Modal, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Linking, Platform, Modal, ScrollView, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import Popup from './Popup';
@@ -19,6 +19,30 @@ export default function SettingsScreen({ profile, onLogout, chatBg, onChangeBg }
   const insets = useSafeAreaInsets();
   const [showLogout, setShowLogout] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
+
+  const checkUpdate = async () => {
+    try {
+      const res = await fetch('https://api.github.com/repos/smbeat82/fambee/releases/latest');
+      if (!res.ok) return Alert.alert('확인 실패', '네트워크 오류');
+      const release = await res.json();
+      const latest = release.tag_name?.replace('v', '');
+      const current = Constants.expoConfig?.version;
+      const isNewer = (a, b) => {
+        const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+        for (let i = 0; i < 3; i++) { if ((pa[i]||0) > (pb[i]||0)) return true; if ((pa[i]||0) < (pb[i]||0)) return false; }
+        return false;
+      };
+      if (!isNewer(latest, current)) {
+        Alert.alert('최신 버전이에요!', `현재 v${current}`);
+      } else {
+        const apk = release.assets?.find(a => a.name.endsWith('.apk'));
+        Alert.alert('새 버전이 있어요!', `v${current} → v${latest}`, [
+          { text: '나중에', style: 'cancel' },
+          { text: '업데이트', onPress: () => Linking.openURL(apk?.browser_download_url || release.html_url) },
+        ]);
+      }
+    } catch (e) { Alert.alert('확인 실패', '네트워크 오류'); }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -59,7 +83,10 @@ export default function SettingsScreen({ profile, onLogout, chatBg, onChangeBg }
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.version}>FamBee v{Constants.expoConfig?.version || '?'}</Text>
+      <TouchableOpacity onPress={checkUpdate} style={styles.versionBtn}>
+        <Text style={styles.version}>FamBee v{Constants.expoConfig?.version || '?'}</Text>
+        <Text style={styles.versionSub}>터치하여 업데이트 확인</Text>
+      </TouchableOpacity>
 
       <Popup
         visible={showLogout}
@@ -109,7 +136,9 @@ const styles = StyleSheet.create({
   menuLabel: { flex: 1, fontSize: 16, color: '#333' },
   menuArrow: { fontSize: 20, color: '#ccc' },
   bgPreview: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: '#ddd', marginRight: 8 },
-  version: { textAlign: 'center', color: '#bbb', fontSize: 12, marginTop: 30 },
+  versionBtn: { alignItems: 'center', marginTop: 30 },
+  version: { textAlign: 'center', color: '#bbb', fontSize: 12 },
+  versionSub: { textAlign: 'center', color: '#ccc', fontSize: 11, marginTop: 4 },
 
   bgModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   bgModal: { backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '80%' },

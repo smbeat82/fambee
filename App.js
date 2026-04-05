@@ -97,7 +97,13 @@ export default function App() {
       const release = await res.json();
       const latest = release.tag_name?.replace('v', '');
       const current = Constants.expoConfig?.version;
-      if (!latest || !current || latest === current) return;
+      if (!latest || !current) return;
+      const isNewer = (a, b) => {
+        const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+        for (let i = 0; i < 3; i++) { if ((pa[i]||0) > (pb[i]||0)) return true; if ((pa[i]||0) < (pb[i]||0)) return false; }
+        return false;
+      };
+      if (!isNewer(latest, current)) return;
       const apk = release.assets?.find(a => a.name.endsWith('.apk'));
       Alert.alert(
         '새 버전이 있어요!',
