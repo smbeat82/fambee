@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+android/
+ios/
+*.apk
+*.aab
+.env
+*.log
+keystore/
+google-services.json
+eas.json
+src/firebaseConfig.js
